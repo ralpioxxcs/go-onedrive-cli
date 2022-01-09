@@ -14,7 +14,9 @@ var listCmd = &cobra.Command{
 		accessToken := viper.Get("access_token")
 
 		res := graph.List(accessToken.(string))
-		fmt.Println(res)
+		for _, v := range res {
+			fmt.Println(v)
+		}
 	},
 }
 

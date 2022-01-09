@@ -13,9 +13,17 @@ var loginCmd = &cobra.Command{
 	Short: "login to onedrive account",
 	Long:  "login to onedrive account, save access token",
 	Run: func(cmd *cobra.Command, args []string) {
-		accessToken := graph.Login()
+		refreshToken := viper.Get("refresh_token")
 
-		viper.Set("access_token", accessToken)
+		var access, refresh string
+		if refreshToken != nil {
+			access, refresh = graph.Login(refreshToken.(string))
+		} else {
+			access, refresh = graph.Login("")
+		}
+
+		viper.Set("access_token", access)
+		viper.Set("refresh_token", refresh)
 		err := viper.WriteConfig()
 		if err != nil {
 			fmt.Println(err)

@@ -22,7 +22,7 @@ type item struct {
 func List(accessToken string) []string {
 	client := http.DefaultClient
 
-	log.Println(accessToken)
+	// log.Println(accessToken)
 	req, _ := http.NewRequest("GET", endPoint, nil)
 	bearerToken := "Bearer " + accessToken
 	req.Header.Add("Authorization", bearerToken)
@@ -35,7 +35,7 @@ func List(accessToken string) []string {
 	}
 	defer resp.Body.Close()
 
-	log.Printf("status : %v\n", resp.Status)
+	// log.Printf("status : %v\n", resp.Status)
 	if resp.StatusCode != 200 {
 		fmt.Println(resp.Status)
 		return nil
@@ -43,7 +43,6 @@ func List(accessToken string) []string {
 
 	body, _ := ioutil.ReadAll(resp.Body)
 	var unmarshalledResponse listResponse
-
 	json.Unmarshal(body, &unmarshalledResponse)
 
 	items := []string{}
