@@ -1,0 +1,7 @@
+auth:
+  redirectpath: "authcode"
+  redirectport: "8888"
+  scope: "files.readwrite offline_access"
+  tenant:      
+  client_id: 
+  client_secret:

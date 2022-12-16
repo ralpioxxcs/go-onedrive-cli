@@ -17,3 +17,5 @@
 main
 
 .env
+
+.vscode/

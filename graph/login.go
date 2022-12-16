@@ -3,34 +3,34 @@ package graph
 import (
 	"encoding/json"
 	"fmt"
+	"go-onedrive-cli/model"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"sync"
 
 	"github.com/gorilla/mux"
-	"github.com/joho/godotenv"
 	"github.com/pkg/browser"
+	"github.com/spf13/viper"
 )
 
-const (
-	loginServerPort = 6789
-	authURI         = "https://login.microsoftonline.com/%s/oauth2/v2.0/authorize"
-	tokenURI        = "https://login.microsoftonline.com/%s/oauth2/v2.0/token"
-	scope           = "files.readwrite offline_access" // white space is replace to be "%20"
-	redirectURI     = "http://localhost:6789/authcode"
+var (
+	authCodeValue string
+	wg            sync.WaitGroup
 )
 
-// [Code Flow Authentication]
-// https://docs.microsoft.com/ko-kr/azure/active-directory/develop/v2-oauth2-auth-code-flow
-// 1. Authenticate to get code
-// 2. Get access token using code
-// 3. Call API using access token
+// Login performing login action using refresh token and return access, refresh token
 func Login(refreshToken string) (string, string) {
+	// [Code Flow Authentication]
+	// https://docs.microsoft.com/ko-kr/azure/active-directory/develop/v2-oauth2-auth-code-flow
+	// 1. Authenticate to get code
+	// 2. Get access token using code
+	// 3. Call API using access token
+	// ---------------------------------------------------------------------------------------
+
 	// 1. Authenticate
-	port := fmt.Sprintf(":%d", loginServerPort)
+	port := fmt.Sprintf(":%s", viper.GetString("auth.redirectPort"))
 
 	router := mux.NewRouter()
 	router.Use(func(h http.Handler) http.Handler {
@@ -40,8 +40,12 @@ func Login(refreshToken string) (string, string) {
 		})
 	})
 
-	// parsing post request form value ("code") from redirected URL
-	router.HandleFunc("/authcode", parseAuthCode).Methods("GET")
+	// auth page에서 redirect url로 post 요청되는 form에서 "code" 쿼리값 파싱하여 저장
+	//router.HandleFunc("/authcode", parseAuthCode).Methods("GET")
+	router.HandleFunc("/"+viper.GetString("auth.redirectPath"), func(w http.ResponseWriter, r *http.Request) {
+		authCodeValue = r.URL.Query().Get("code")
+		wg.Done()
+	}).Methods("GET")
 
 	wg.Add(1)
 	log.Printf("Listening on http://localhost%s\n", port)
@@ -52,74 +56,41 @@ func Login(refreshToken string) (string, string) {
 	// 2. Get access token
 	accessToken, refreshToken, err := getAccessToken(refreshToken)
 	if err != nil {
-		log.Fatalf("failed to get access token (%v)\n", err)
+		log.Fatalf("failed to get access token (err : %v)\n", err)
 	}
 
 	return accessToken, refreshToken
 }
 
-var (
-	tenant        string
-	clientID      string
-	clientSecret  string
-	authCodeValue string
-	wg            sync.WaitGroup
-)
-
-const (
-	ACCESS_TOKEN = 1 + iota
-	REFRESH_TOKEN
-)
-
-// response of get access token request
-// (https://docs.microsoft.com/ko-kr/azure/active-directory/develop/v2-oauth2-auth-code-flow#successful-response-2)
-type authtokenResponse struct {
-	AccessToken  string `json:"access_token"`
-	TokenType    string `json:"token_type"`
-	ExpiressIn   int    `json:"expires_in"`
-	Scope        string `json:"scope"`
-	RefreshToken string `json:"refresh_token"`
-	IdToken      string `json:"id_token"`
-}
-
-type errorResponse struct {
-	Error            string `json:"error"`
-	ErrorDescription string `json:"error_description"`
-	ErrorCode        int    `json:"erorr_codes"`
-	TimeStamp        string `json:"timestamp"`
-	TraceID          string `json:"trace_id"`
-	CorrelationID    string `json:"correlation_id"`
-}
-
+// generateAuthURL generate microsoft authentication url with clients parameters
 func generateAuthURL() string {
 	// reference : https://docs.microsoft.com/ko-kr/azure/active-directory/develop/v2-oauth2-auth-code-flow#request-an-authorization-code
+	// required query components
+	// - tenant
+	// - client_id
+	// - scope
+	// - response_type
+	// - redirect_uri
 
-	// [required query components]
-	//  - tenant, client_id, scope, response_type, redirect_uri
+	// 인증 코드 요청 페이지 호출
 	const responseType = "code"
-	authURI := fmt.Sprintf(authURI, tenant)
+	const queryParamsFormat = "%s?client_id=%s&scope=%s&response_type=%s&redirect_uri=%s"
 
 	// must be encoded URL from string
-	encodedScopeURI := url.QueryEscape(scope)
-	encodedRedirectURI := url.QueryEscape(redirectURI)
+	encodedScopeURI := url.QueryEscape(viper.GetString("auth.scope"))
+	encodedRedirectURI := url.QueryEscape(makeRedirectURI(viper.GetString("auth.redirectPort"), viper.GetString("auth.redirectPath")))
 
-	url := fmt.Sprintf("%s?client_id=%s&scope=%s&response_type=%s&redirect_uri=%s",
-		authURI, clientID, encodedScopeURI, responseType, encodedRedirectURI)
+	url := fmt.Sprintf(queryParamsFormat,
+		makeAuthURI(viper.GetString("auth.tenant")), viper.GetString("auth.client_id"), encodedScopeURI, responseType, encodedRedirectURI)
 
-	log.Println(url)
+	log.Println("authorization URL: ", url)
 
 	return url
 }
 
-func parseAuthCode(rw http.ResponseWriter, r *http.Request) {
-	authCodeValue = r.URL.Query().Get("code")
-
-	wg.Done()
-}
-
+// getAccessToken refresh tokens using refresh token and return access, refresh token
 func getAccessToken(refreshToken string) (string, string, error) {
 	// ref : https://docs.microsoft.com/ko-kr/azure/active-directory/develop/v2-oauth2-auth-code-flow#request-an-access-token-with-a-client_secret
-
 	// [required query components]
 	//  - tenant, client_id, code, redirect_uri, grant_type, client_secret
 	//  - refresh_token (when refresh "true")
@@ -132,16 +103,16 @@ func getAccessToken(refreshToken string) (string, string, error) {
 
 	client := http.DefaultClient
 	formValue := url.Values{}
-	formValue.Set("client_id", clientID)
+	formValue.Set("client_id", viper.GetString("auth.client_id"))
 	formValue.Set("code", authCodeValue)
-	formValue.Set("redirect_uri", redirectURI)
+	formValue.Set("redirect_uri", makeRedirectURI(viper.GetString("auth.redirectPort"), viper.GetString("auth.redirectPath")))
 	formValue.Set("grant_type", grantType)
 	if refreshToken != "" {
 		formValue.Set("refresh_token", refreshToken)
 	}
-	formValue.Set("client_secret", clientSecret)
+	formValue.Set("client_secret", viper.GetString("auth.client_secret"))
 
-	resp, err := client.PostForm(fmt.Sprintf(tokenURI, tenant), formValue)
+	resp, err := client.PostForm(makeTokenURI(viper.GetString("auth.tenant")), formValue)
 	if err != nil {
 		log.Fatalln("error on POST ", err)
 	}
@@ -150,7 +121,7 @@ func getAccessToken(refreshToken string) (string, string, error) {
 	body, _ := ioutil.ReadAll(resp.Body)
 
 	if resp.StatusCode != 200 {
-		var errResp errorResponse
+		var errResp model.ErrorResponse
 		err := json.Unmarshal(body, &errResp)
 		if err != nil {
 			log.Fatalln("error on unmarshall", err)
@@ -159,7 +130,7 @@ func getAccessToken(refreshToken string) (string, string, error) {
 		log.Fatalf("error response : %v\n", string(marshalled))
 	}
 
-	var authResp authtokenResponse
+	var authResp model.AuthtokenResponse
 	err = json.Unmarshal(body, &authResp)
 	if err != nil {
 		log.Fatalln("error on unmarshall", err)
@@ -171,12 +142,17 @@ func getAccessToken(refreshToken string) (string, string, error) {
 	return authResp.AccessToken, authResp.RefreshToken, nil
 }
 
-func init() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatalln("failed to load .env", err)
-	}
-	tenant = os.Getenv("TENANT")
-	clientID = os.Getenv("CLIENT_ID")
-	clientSecret = os.Getenv("CLIENT_SECRET")
+func makeAuthURI(tenant string) string {
+	const authURIFormat = "https://login.microsoftonline.com/%s/oauth2/v2.0/authorize"
+	return fmt.Sprintf(authURIFormat, tenant)
+}
+
+func makeTokenURI(tenant string) string {
+	const tokenURIFormat = "https://login.microsoftonline.com/%s/oauth2/v2.0/token"
+	return fmt.Sprintf(tokenURIFormat, tenant)
+}
+
+func makeRedirectURI(port, path string) string {
+	const redirectURLFormat = "http://localhost:%s/%s"
+	return fmt.Sprintf(redirectURLFormat, port, path)
 }
