@@ -5,15 +5,15 @@ import (
 	"go-onedrive-cli/graph"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var listCmd = &cobra.Command{
-	Use: "list",
+	Use:   "list",
+	Short: "list items",
 	Run: func(cmd *cobra.Command, args []string) {
-		accessToken := viper.Get("access_token")
+		accessToken := credential.GetString("access_token")
 
-		res := graph.List(accessToken.(string))
+		res := graph.List(accessToken)
 		for _, v := range res {
 			fmt.Println(v)
 		}

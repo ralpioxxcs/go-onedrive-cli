@@ -11,7 +11,8 @@ import (
 )
 
 var (
-	credential *viper.Viper
+	credential         *viper.Viper
+	credentialFilepath string
 )
 
 var loginCmd = &cobra.Command{
@@ -29,9 +30,9 @@ var loginCmd = &cobra.Command{
 
 		credential.Set("access_token", access)
 		credential.Set("refresh_token", refresh)
-		err := credential.WriteConfig()
+		err := credential.WriteConfigAs(credentialFilepath)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("failed to write config (err: %v)", err.Error())
 		}
 	},
 }
@@ -41,6 +42,8 @@ func init() {
 
 	credential = viper.New()
 	homeDir, _ := os.UserHomeDir()
+
+	credentialFilepath = path.Join(homeDir, ".go-onedrive-cli", "credentials.yaml")
 
 	credential.AddConfigPath(path.Join(homeDir, ".go-onedrive-cli"))
 	credential.SetConfigName("credentials")

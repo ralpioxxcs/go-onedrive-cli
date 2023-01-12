@@ -1,3 +1,5 @@
+
+# Authentication
 auth:
   redirectpath: "authcode"
   redirectport: "8888"
