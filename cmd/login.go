@@ -41,6 +41,7 @@ func init() {
 
 	credential = viper.New()
 	homeDir, _ := os.UserHomeDir()
+
 	credential.AddConfigPath(path.Join(homeDir, ".go-onedrive-cli"))
 	credential.SetConfigName("credentials")
 	credential.SetConfigType("yaml")
