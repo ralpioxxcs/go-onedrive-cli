@@ -1,0 +1,35 @@
+package main
+
+import (
+	"log"
+
+	"github.com/ralpioxxcs/go-onedrive-cli/graph"
+
+	"github.com/spf13/cobra"
+)
+
+var loginCmd = &cobra.Command{
+	Use:   "login",
+	Short: "login to onedrive account",
+	Long:  "login to onedrive account and then save access token current config file",
+	Run: func(cmd *cobra.Command, args []string) {
+		refreshToken := credential.Get("refresh_token")
+		var access, refresh string
+		if refreshToken != nil {
+			access, refresh = graph.Login(refreshToken.(string))
+		} else {
+			access, refresh = graph.Login("")
+		}
+
+		credential.Set("access_token", access)
+		credential.Set("refresh_token", refresh)
+		err := credential.WriteConfigAs(credentialFilepath)
+		if err != nil {
+			log.Fatalf("failed to write config (err: %v)", err.Error())
+		}
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(loginCmd)
+}

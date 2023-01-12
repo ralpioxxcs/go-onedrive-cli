@@ -1,4 +1,4 @@
-module go-onedrive-cli
+module github.com/ralpioxxcs/go-onedrive-cli
 
 go 1.17
 

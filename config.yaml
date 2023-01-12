@@ -1,8 +1,8 @@
 
 # Authentication
 auth:
-  redirectpath: "authcode"
-  redirectport: "8888"
+  redirect_path: "authcode"
+  redirect_port: "8888"
   scope: "files.readwrite offline_access"
   tenant:      
   client_id: 

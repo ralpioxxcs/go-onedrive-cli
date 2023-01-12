@@ -3,12 +3,13 @@ package graph
 import (
 	"encoding/json"
 	"fmt"
-	"go-onedrive-cli/model"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
 	"sync"
+
+	"github.com/ralpioxxcs/go-onedrive-cli/model"
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/browser"
@@ -30,7 +31,7 @@ func Login(refreshToken string) (string, string) {
 	// ---------------------------------------------------------------------------------------
 
 	// 1. Authenticate
-	port := fmt.Sprintf(":%s", viper.GetString("auth.redirectPort"))
+	port := fmt.Sprintf(":%s", viper.GetString("auth.redirect_port"))
 
 	router := mux.NewRouter()
 	router.Use(func(h http.Handler) http.Handler {
@@ -42,7 +43,7 @@ func Login(refreshToken string) (string, string) {
 
 	// auth page에서 redirect url로 post 요청되는 form에서 "code" 쿼리값 파싱하여 저장
 	//router.HandleFunc("/authcode", parseAuthCode).Methods("GET")
-	router.HandleFunc("/"+viper.GetString("auth.redirectPath"), func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/"+viper.GetString("auth.redirect_path"), func(w http.ResponseWriter, r *http.Request) {
 		authCodeValue = r.URL.Query().Get("code")
 		wg.Done()
 	}).Methods("GET")

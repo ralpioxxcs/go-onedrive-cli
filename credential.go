@@ -1,0 +1,5 @@
+package goc
+
+func test() {
+
+}

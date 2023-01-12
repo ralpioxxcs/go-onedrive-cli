@@ -3,6 +3,11 @@
 
 Onedrive CLI interface using golang
 
+## Build
+```shelll
+go build -o go-onedrive-cli cmd/goc/*.go
+```
+
 ## Installation
 
 * Source
