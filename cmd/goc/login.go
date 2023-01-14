@@ -4,7 +4,6 @@ import (
 	"log"
 
 	"github.com/ralpioxxcs/go-onedrive-cli/graph"
-
 	"github.com/spf13/cobra"
 )
 
@@ -15,17 +14,27 @@ var loginCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		refreshToken := credential.Get("refresh_token")
 		var access, refresh string
+
+		auth := graph.Authform{
+			RedirectPort: config.GetString("auth.redirect_port"),
+			RedirectPath: config.GetString("auth.redirect_path"),
+			Scope:        config.GetString("auth.scope"),
+			Tenant:       config.GetString("auth.tenant"),
+			ClientId:     config.GetString("auth.client_id"),
+			ClientSecret: config.GetString("auth.client_secret"),
+		}
+
 		if refreshToken != nil {
-			access, refresh = graph.Login(refreshToken.(string))
+			access, refresh = graph.Login(refreshToken.(string), auth)
 		} else {
-			access, refresh = graph.Login("")
+			access, refresh = graph.Login("", auth)
 		}
 
 		credential.Set("access_token", access)
 		credential.Set("refresh_token", refresh)
 		err := credential.WriteConfigAs(credentialFilepath)
 		if err != nil {
-			log.Fatalf("failed to write config (err: %v)", err.Error())
+			log.Fatalf("failed to write credential (err: %v)", err.Error())
 		}
 	},
 }

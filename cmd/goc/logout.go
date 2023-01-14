@@ -5,7 +5,8 @@ import (
 )
 
 var logoutCmd = &cobra.Command{
-	Use: "logout",
+	Use:   "logout",
+	Short: "logout account, remove credentials",
 	Run: func(cmd *cobra.Command, args []string) {
 	},
 }

@@ -3,26 +3,35 @@ package graph
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
 	"sync"
 
-	"github.com/ralpioxxcs/go-onedrive-cli/model"
-
 	"github.com/gorilla/mux"
 	"github.com/pkg/browser"
-	"github.com/spf13/viper"
+	"github.com/ralpioxxcs/go-onedrive-cli/model"
 )
 
+type Authform struct {
+	RedirectPort string // redirection port
+	RedirectPath string
+	Scope        string
+	Tenant       string
+	ClientId     string
+	ClientSecret string
+}
+
 var (
+	authData      Authform
 	authCodeValue string
 	wg            sync.WaitGroup
 )
 
 // Login performing login action using refresh token and return access, refresh token
-func Login(refreshToken string) (string, string) {
+func Login(refreshToken string, auth Authform) (string, string) {
+
 	// [Code Flow Authentication]
 	// https://docs.microsoft.com/ko-kr/azure/active-directory/develop/v2-oauth2-auth-code-flow
 	// 1. Authenticate to get code
@@ -30,8 +39,10 @@ func Login(refreshToken string) (string, string) {
 	// 3. Call API using access token
 	// ---------------------------------------------------------------------------------------
 
+	authData = auth
+
 	// 1. Authenticate
-	port := fmt.Sprintf(":%s", viper.GetString("auth.redirect_port"))
+	port := fmt.Sprintf(":%s", authData.RedirectPort)
 
 	router := mux.NewRouter()
 	router.Use(func(h http.Handler) http.Handler {
@@ -43,7 +54,7 @@ func Login(refreshToken string) (string, string) {
 
 	// auth page에서 redirect url로 post 요청되는 form에서 "code" 쿼리값 파싱하여 저장
 	//router.HandleFunc("/authcode", parseAuthCode).Methods("GET")
-	router.HandleFunc("/"+viper.GetString("auth.redirect_path"), func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/"+authData.RedirectPath, func(w http.ResponseWriter, r *http.Request) {
 		authCodeValue = r.URL.Query().Get("code")
 		wg.Done()
 	}).Methods("GET")
@@ -78,11 +89,11 @@ func generateAuthURL() string {
 	const queryParamsFormat = "%s?client_id=%s&scope=%s&response_type=%s&redirect_uri=%s"
 
 	// must be encoded URL from string
-	encodedScopeURI := url.QueryEscape(viper.GetString("auth.scope"))
-	encodedRedirectURI := url.QueryEscape(makeRedirectURI(viper.GetString("auth.redirectPort"), viper.GetString("auth.redirectPath")))
+	encodedScopeURI := url.QueryEscape(authData.Scope)
+	encodedRedirectURI := url.QueryEscape(makeRedirectURI(authData.RedirectPort, authData.RedirectPath))
 
 	url := fmt.Sprintf(queryParamsFormat,
-		makeAuthURI(viper.GetString("auth.tenant")), viper.GetString("auth.client_id"), encodedScopeURI, responseType, encodedRedirectURI)
+		makeAuthURI(authData.Tenant), authData.ClientId, encodedScopeURI, responseType, encodedRedirectURI)
 
 	log.Println("authorization URL: ", url)
 
@@ -104,22 +115,22 @@ func getAccessToken(refreshToken string) (string, string, error) {
 
 	client := http.DefaultClient
 	formValue := url.Values{}
-	formValue.Set("client_id", viper.GetString("auth.client_id"))
+	formValue.Set("client_id", authData.ClientId)
 	formValue.Set("code", authCodeValue)
-	formValue.Set("redirect_uri", makeRedirectURI(viper.GetString("auth.redirectPort"), viper.GetString("auth.redirectPath")))
+	formValue.Set("redirect_uri", makeRedirectURI(authData.RedirectPort, authData.RedirectPath))
 	formValue.Set("grant_type", grantType)
 	if refreshToken != "" {
 		formValue.Set("refresh_token", refreshToken)
 	}
-	formValue.Set("client_secret", viper.GetString("auth.client_secret"))
+	formValue.Set("client_secret", authData.ClientSecret)
 
-	resp, err := client.PostForm(makeTokenURI(viper.GetString("auth.tenant")), formValue)
+	resp, err := client.PostForm(makeTokenURI(authData.Tenant), formValue)
 	if err != nil {
 		log.Fatalln("error on POST ", err)
 	}
 	defer resp.Body.Close()
 
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode != 200 {
 		var errResp model.ErrorResponse

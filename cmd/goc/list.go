@@ -14,6 +14,8 @@ var listCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		accessToken := credential.GetString("access_token")
 
+		fmt.Println(accessToken)
+
 		res := graph.List(accessToken)
 		for _, v := range res {
 			fmt.Println(v)

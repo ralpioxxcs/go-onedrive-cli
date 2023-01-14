@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 
+	"github.com/ralpioxxcs/go-onedrive-cli/internal/util"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -18,7 +19,6 @@ var (
 var (
 	config             *viper.Viper
 	credential         *viper.Viper
-	configFilepath     string
 	credentialFilepath string
 )
 
@@ -36,11 +36,7 @@ func initConfigs() {
 		}
 	}
 
-	configFilepath = path.Join(homeDir, ".go-onedrive-cli", "config.yaml")
 	credentialFilepath = path.Join(homeDir, ".go-onedrive-cli", "credentials.yaml")
-
-	log.Println("config: ", configFilepath)
-	log.Println("credential: ", credentialFilepath)
 
 	config.AddConfigPath(path.Join(homeDir, ".go-onedrive-cli"))
 	config.SetConfigName("config")
@@ -55,10 +51,15 @@ func initConfigs() {
 		log.Fatalf("failed to read config (err: %v)", err.Error())
 	}
 
-	/*
+	//
+	if util.IsFileExists(credentialFilepath) {
 		if err := credential.ReadInConfig(); err != nil {
 			log.Fatalf("failed to read credential (err: %v)", err.Error())
 		}
-	*/
+	}
 
+}
+
+func CheckCredentials() bool {
+	return util.IsFileExists(credentialFilepath)
 }
