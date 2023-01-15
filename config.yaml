@@ -4,6 +4,6 @@ auth:
   redirect_path: "authcode"
   redirect_port: "8888"
   scope: "files.readwrite offline_access"
-  tenant:      
-  client_id: 
-  client_secret:
+  tenant: ""
+  client_id: ""
+  client_secret: ""
