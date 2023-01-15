@@ -1,7 +1,0 @@
-auth:
-  redirectpath: "authcode"
-  redirectport: "8888"
-  tenant: "f740e02f-c3e0-4cff-b4e6-6df192596902"
-  client_id: "77601891-94f3-45fc-9e67-1d629f50ba9c"
-  client_secret: "R-x8Q~z.ra8w61QrRIfkrTZ~Aq9ofkF4O32Yqduv"
-  scope: "files.readwrite offline_access"
