@@ -2,53 +2,59 @@ package graph
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 )
 
-const endPoint = "https://graph.microsoft.com/v1.0/me/drive/root/children"
+const (
+	allItems    = "https://graph.microsoft.com/v1.0/me/drive/root/children"
+	recentFiles = "https://graph.microsoft.com/v1.0/me/drive/recent"
+)
+
+var (
+	ErrRequest = errors.New("failed to request")
+)
 
 type listResponse struct {
-	Value []item `json:"value"`
+	Items []Items `json:"value"`
 }
 
-type item struct {
-	Name string `json:"name"`
-	ID   string `json:"id"`
+type Items struct {
+	// inherited from baseItem
+	Name           string `json:"name"`
+	ID             string `json:"id"`
+	CreateDateTime string `json:"createdDateTime"`
+	ETag           string `json:"eTag"`
+	DownloadURL    string `json:"@microsoft.graph.downloadUrl"`
 }
 
-func List(accessToken string) []string {
+func List(accessToken string) ([]Items, error) {
 	client := http.DefaultClient
 
-	// log.Println(accessToken)
-	req, _ := http.NewRequest("GET", endPoint, nil)
+	req, _ := http.NewRequest("GET", allItems, nil)
 	bearerToken := "Bearer " + accessToken
 	req.Header.Add("Authorization", bearerToken)
 
 	resp, err := client.Do(req)
-
 	if err != nil {
 		log.Println("error on POST ", err)
-		return nil
+		return []Items{}, ErrRequest
 	}
 	defer resp.Body.Close()
 
-	// log.Printf("status : %v\n", resp.Status)
 	if resp.StatusCode != 200 {
 		fmt.Println(resp.Status)
-		return nil
+		return []Items{}, ErrRequest
 	}
 
-	body, _ := ioutil.ReadAll(resp.Body)
-	var unmarshalledResponse listResponse
-	json.Unmarshal(body, &unmarshalledResponse)
-
-	items := []string{}
-	for _, item := range unmarshalledResponse.Value {
-		items = append(items, item.Name)
+	body, _ := io.ReadAll(resp.Body)
+	unmarshalledResponse := listResponse{}
+	if err := json.Unmarshal(body, &unmarshalledResponse); err != nil {
+		log.Fatal(err)
 	}
 
-	return items
+	return unmarshalledResponse.Items, nil
 }

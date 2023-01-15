@@ -36,6 +36,9 @@ var loginCmd = &cobra.Command{
 		if err != nil {
 			log.Fatalf("failed to write credential (err: %v)", err.Error())
 		}
+
+		log.Println("success to login")
+
 	},
 }
 

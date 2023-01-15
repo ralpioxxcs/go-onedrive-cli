@@ -1,4 +1,4 @@
-BINARY_NAME=go-onedirve-cli
+BINARY_NAME=go-onedrive-cli
 
 all: build
 
