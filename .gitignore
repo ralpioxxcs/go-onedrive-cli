@@ -20,4 +20,6 @@ main
 
 .vscode/
 
+# Output binary
 go-onedrive-cli
+goc
